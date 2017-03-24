@@ -73,7 +73,10 @@
     (double input))
 
   Keyword
-  (to-db-object [^Keyword input] (.getName input))
+  (to-db-object [^Keyword input]
+    (if-let [ns-part (.getNamespace input)]
+      (str (.replace ns-part "." "@") "/" (.getName input))
+      (.getName input)))
 
   Named
   (to-db-object [^Named input] (.getName input))
@@ -134,7 +137,12 @@
     ;; UnsupportedOperationException.
     (reduce (if keywordize
               (fn [m ^String k]
-                (assoc m (keyword k) (from-db-object (.get input k) true)))
+                (let [ks (let [slash-index (.indexOf k "/")]
+                           (if (neg? slash-index)
+                             k
+                             (str (.replace (subs k 0 slash-index) "@" ".")
+                                  (subs k slash-index))))]
+                  (assoc m (keyword ks) (from-db-object (.get input k) true))))
               (fn [m ^String k]
                 (assoc m k (from-db-object (.get input k) false))))
             {} (.keySet input))))
